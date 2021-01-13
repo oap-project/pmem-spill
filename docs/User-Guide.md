@@ -1,8 +1,4 @@
-# PMem Spill
-
-## Online Documentation
-
-You can find the all the PMem Spill documents on the [project web page](https://oap-project.github.io/pmem-spill/).
+# RDD Cache PMem Extension
 
 ## Contents
 - [Introduction](#introduction)
@@ -10,7 +6,7 @@ You can find the all the PMem Spill documents on the [project web page](https://
 
 ## Introduction
 
-PMem Spill supports RDD Cache with Optane PMem. Spark has various storage levels serving for different purposes including memory and disk.
+OAP Spark supports RDD Cache with Optane PMem. Spark has various storage levels serving for different purposes including memory and disk.
 
 PMem storage level is added to support a new tier for storage level besides memory and disk.
 
@@ -22,7 +18,7 @@ Large capacity and high I/O performance of PMem shows better performance than ti
 
 ### Installation
 
-We have provided a Conda package which will automatically install dependencies needed by OAP, you can refer to [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md) for more information. If you have finished [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md), you needn't compile and install Memkind, and you can find compiled OAP jars in `$HOME/miniconda2/envs/oapenv/oap_jars`.
+We have provided a Conda package which will automatically install dependencies needed by OAP, you can refer to [OAP-Installation-Guide](./OAP-Installation-Guide.md) for more information. If you have finished [OAP-Installation-Guide](./OAP-Installation-Guide.md), you needn't compile and install Memkind, and you can find compiled OAP jars in `$HOME/miniconda2/envs/oapenv/oap_jars`.
 
 ### Prerequisites
 
@@ -131,7 +127,7 @@ HiBench/conf/spark.conf
 HiBench/conf/workloads/ml/kmeans.conf
 ```
 Note that you need add `hibench.kmeans.storage.level  PMEM_AND_DISK` to `kmeans.conf`, which can enable both PMem and Disk to cache data.
-If you completed [OAP-Installation-Guide](./docs/OAP-Installation-Guide.md), you also need add the following configs to `spark.conf`
+If you completed [OAP-Installation-Guide](./OAP-Installation-Guide.md), you also need add the following configs to `spark.conf`
 ```
 spark.executorEnv.LD_LIBRARY_PATH   $HOME/miniconda2/envs/oapenv/lib
 spark.executor.extraLibraryPath     $HOME/miniconda2/envs/oapenv/lib
