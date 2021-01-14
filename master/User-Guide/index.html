@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  
+  
+  <link rel="shortcut icon" href="../img/favicon.ico">
+  <title>User Guide - PMem Spill - master</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
+
+  <link rel="stylesheet" href="../css/theme.css" />
+  <link rel="stylesheet" href="../css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "User Guide";
+    var mkdocs_page_input_path = "User-Guide.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="../js/jquery-2.1.1.min.js" defer></script>
+  <script src="../js/modernizr-2.8.3.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+        <a href=".." class="icon icon-home"> PMem Spill - master</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href="./">User Guide</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#contents">Contents</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#user-guide">User Guide</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#compiling">Compiling</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#configuration">Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#use-optane-pmem-to-cache-data">Use Optane PMem to cache data</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#run-k-means-benchmark">Run K-means benchmark</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#limitations">Limitations</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#how-to-contribute">How to contribute</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../OAP-Installation-Guide/">OAP Installation Guide</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="reference internal" href="../OAP-Developer-Guide/">OAP Developer Guide</a>
+                    </li>
+                </ul>
+                <ul>
+                    <li class="toctree-l1"><a class="" href="../../">Version Selector</a>
+                    </li>
+                </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="..">PMem Spill - master</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="..">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>User Guide</li>
+    <li class="wy-breadcrumbs-aside">
+      
+    </li>
+  </ul>
+  
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="pmem-spill">PMem Spill</h1>
+<h2 id="contents">Contents</h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#user-guide">User Guide</a></li>
+</ul>
+<h2 id="introduction">Introduction</h2>
+<p>PMem Spill supports RDD Cache with Optane PMem. Spark has various storage levels serving for different purposes including memory and disk.</p>
+<p>PMem storage level is added to support a new tier for storage level besides memory and disk.</p>
+<p>Using PMem library to access Optane PMem can help to avoid the overhead from disk.</p>
+<p>Large capacity and high I/O performance of PMem shows better performance than tied DRAM and disk solution under the same cost.</p>
+<h2 id="user-guide">User Guide</h2>
+<h3 id="installation">Installation</h3>
+<p>We have provided a Conda package which will automatically install dependencies needed by OAP, you can refer to <a href="../OAP-Installation-Guide/">OAP-Installation-Guide</a> for more information. If you have finished <a href="../OAP-Installation-Guide/">OAP-Installation-Guide</a>, you needn't compile and install Memkind, and you can find compiled OAP jars in <code>$HOME/miniconda2/envs/oapenv/oap_jars</code>.</p>
+<h3 id="prerequisites">Prerequisites</h3>
+<p>The following are required to configure OAP to use PMem cache in AppDirect mode.
+- PMem hardware is successfully deployed on each node in cluster.
+- Directories exposing PMem hardware on each socket. For example, on a two socket system the mounted PMem directories should appear as <code>/mnt/pmem0</code> and <code>/mnt/pmem1</code>. Correctly installed PMem must be formatted and mounted on every cluster worker node.</p>
+<pre><code>// use ipmctl command to show topology and dimm info of PMem
+ipmctl show -topology
+ipmctl show -dimm
+// provision PMem in app direct mode
+ipmctl create -goal PersistentMemoryType=AppDirect
+// reboot system to make configuration take affect
+reboot
+// check capacity provisioned for app direct mode(AppDirectCapacity)
+ipmctl show -memoryresources
+// show the PMem region information
+ipmctl show -region
+// create namespace based on the region, multi namespaces can be created on a single region
+ndctl create-namespace -m fsdax -r region0
+ndctl create-namespace -m fsdax -r region1
+// show the created namespaces
+fdisk -l
+// create and mount file system
+echo y | mkfs.ext4 /dev/pmem0
+echo y | mkfs.ext4 /dev/pmem1
+mkdir -p /mnt/pmem0
+mkdir -p /mnt/pmem1 
+mount -o dax /dev/pmem0 /mnt/pmem0
+mount -o dax /dev/pmem1 /mnt/pmem1
+</code></pre>
+
+<p>In this case file systems are generated for 2 numa nodes, which can be checked by "numactl --hardware". For a different number of numa nodes, a corresponding number of namespaces should be created to assure correct file system paths mapping to numa nodes.</p>
+<ul>
+<li>Make sure <a href="https://github.com/memkind/memkind/tree/v1.10.1-rc2">Memkind</a> library installed on every cluster worker node. Compile Memkind based on your system or directly place our pre-built binary of <a href="https://github.com/Intel-bigdata/OAP/releases/download/v1.0.0-spark-3.0.0/libmemkind.so.0">libmemkind.so.0</a> for x86 64bit CentOS Linux in the <code>/lib64/</code>directory of each worker node in cluster.
+   The Memkind library depends on <code>libnuma</code> at the runtime, so it must already exist in the worker node system.
+   Build the latest memkind lib from source:</li>
+</ul>
+<pre><code>git clone -b v1.10.1 https://github.com/memkind/memkind
+cd memkind
+./autogen.sh
+./configure
+make
+make install
+</code></pre>
+
+<ul>
+<li>For KMem Dax mode, we need to configure PMem as system ram. Kernel 5.1 or above is required to this mode.</li>
+</ul>
+<pre><code>daxctl migrate-device-model
+ndctl create-namespace --mode=devdax --map=mem
+ndctl list
+daxctl reconfigure-device dax0.0 --mode=system-ram
+daxctl reconfigure-device dax1.0 --mode=system-ram
+daxctl reconfigure-device daxX.Y --mode=system-ram
+</code></pre>
+
+<p>Refer <a href="https://github.com/memkind/memkind#kernel">Memkind KMem</a> for details.</p>
+<h3 id="compiling">Compiling</h3>
+<p>To build pmem spill, you can run below commands:</p>
+<pre><code>cd ${PMEM-SPILL}
+mvn clean package -DskipTests
+</code></pre>
+
+<p>You will find jar files under oap-common/target and oap-spark/target.</p>
+<h3 id="configuration">Configuration</h3>
+<p>To enable rdd cache on Intel Optane PMem, you need add the following configurations to <code>spark-defaults.conf</code></p>
+<pre><code>spark.memory.pmem.initial.path [Your Optane PMem paths seperate with comma]
+spark.memory.pmem.initial.size [Your Optane PMem size in GB]
+spark.memory.pmem.usable.ratio [from 0 to 1, 0.85 is recommended]
+spark.yarn.numa.enabled true
+spark.yarn.numa.num [Your numa node number]
+spark.memory.pmem.mode [AppDirect | KMemDax]
+
+spark.files                       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-spill-&lt;version&gt;-with-spark-&lt;version&gt;.jar,file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
+spark.executor.extraClassPath     ./pmem-spill-&lt;version&gt;-with-spark-&lt;version&gt;.jar:./pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
+spark.driver.extraClassPath       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-spill-&lt;version&gt;-with-spark-&lt;version&gt;.jar:file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
+</code></pre>
+
+<h3 id="use-optane-pmem-to-cache-data">Use Optane PMem to cache data</h3>
+<p>There's a new StorageLevel: PMEM_AND_DISK being added to cache data to Optane PMem, at the places you previously cache/persist data to memory, use PMEM_AND_DISK to substitute the previous StorageLevel, data will be cached to Optane PMem.</p>
+<pre><code>persist(StorageLevel.PMEM_AND_DISK)
+</code></pre>
+
+<h3 id="run-k-means-benchmark">Run K-means benchmark</h3>
+<p>You can use <a href="https://github.com/Intel-bigdata/HiBench">Hibench</a> to run K-means workload:</p>
+<p>After you Build Hibench, then follow Run SparkBench documentation. Here are some tips besides this documentation you need to notice.
+Follow the documentation to configure these 4 files:</p>
+<pre><code>HiBench/conf/hadoop.conf
+HiBench/conf/hibench.conf
+HiBench/conf/spark.conf
+HiBench/conf/workloads/ml/kmeans.conf
+</code></pre>
+
+<p>Note that you need add <code>hibench.kmeans.storage.level  PMEM_AND_DISK</code> to <code>kmeans.conf</code>, which can enable both PMem and Disk to cache data.
+If you completed <a href="../OAP-Installation-Guide/">OAP-Installation-Guide</a>, you also need add the following configs to <code>spark.conf</code></p>
+<pre><code>spark.executorEnv.LD_LIBRARY_PATH   $HOME/miniconda2/envs/oapenv/lib
+spark.executor.extraLibraryPath     $HOME/miniconda2/envs/oapenv/lib
+spark.driver.extraLibraryPath       $HOME/miniconda2/envs/oapenv/lib
+
+</code></pre>
+
+<p>Then you can run the following 2 commands to run K-means workloads:</p>
+<pre><code>bin/workloads/ml/kmeans/prepare/prepare.sh
+bin/workloads/ml/kmeans/spark/run.sh
+</code></pre>
+
+<p>Then you can find the log as below:</p>
+<pre><code>patching args=
+Parsing conf: /home/wh/HiBench/conf/hadoop.conf
+Parsing conf: /home/wh/HiBench/conf/hibench.conf
+Parsing conf: /home/wh/HiBench/conf/spark.conf
+Parsing conf: /home/wh/HiBench/conf/workloads/ml/kmeans.conf
+probe sleep jar: /opt/Beaver/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-client-jobclient-2.7.3-tests.jar
+start ScalaSparkKmeans bench
+hdfs rm -r: /opt/Beaver/hadoop/bin/hadoop --config /opt/Beaver/hadoop/etc/hadoop fs -rm -r -skipTrash hdfs://vsr219:9000/HiBench/Kmeans/Output
+rm: `hdfs://vsr219:9000/HiBench/Kmeans/Output': No such file or directory
+hdfs du -s: /opt/Beaver/hadoop/bin/hadoop --config /opt/Beaver/hadoop/etc/hadoop fs -du -s hdfs://vsr219:9000/HiBench/Kmeans/Input
+Export env: SPARKBENCH_PROPERTIES_FILES=/home/wh/HiBench/report/kmeans/spark/conf/sparkbench/sparkbench.conf
+Export env: HADOOP_CONF_DIR=/opt/Beaver/hadoop/etc/hadoop
+Submit Spark job: /opt/Beaver/spark/bin/spark-submit  --properties-file /home/wh/HiBench/report/kmeans/spark/conf/sparkbench/spark.conf --class com.intel.hibench.sparkbench.ml.DenseKMeans --master yarn-client --num-executors 2 --executor-cores 45 --executor-memory 100g /home/wh/HiBench/sparkbench/assembly/target/sparkbench-assembly-8.0-SNAPSHOT-dist.jar -k 10 --numIterations 5 --storageLevel PMEM_AND_DISK hdfs://vsr219:9000/HiBench/Kmeans/Input/samples
+20/07/03 09:07:49 INFO util.ShutdownHookManager: Deleting directory /tmp/spark-43459116-f4e3-4fe1-bb29-9bca0afa5286
+finish ScalaSparkKmeans bench
+</code></pre>
+
+<p>Open the Spark History Web UI and go to the Storage tab page to verify the cache metrics.</p>
+<h3 id="limitations">Limitations</h3>
+<p>For the scenario that data will exceed the block cache capacity. Memkind 1.9.0 and kernel 4.18 is recommended to avoid the unexpected issue.</p>
+<h3 id="how-to-contribute">How to contribute</h3>
+<p>Currently, PMem Spill packages includes all Spark changed files.</p>
+<ul>
+<li>MemoryMode.java</li>
+<li>MemoryManager.scala</li>
+<li>StorageMemoryPool.scala</li>
+<li>UnifiedMemoryManager.scala</li>
+<li>MemoryStore.scala</li>
+<li>BlockManager.scala</li>
+<li>StorageLevel.scala</li>
+<li>TestMemoryManager</li>
+</ul>
+<p>Please make sure your code change in above source code will not break current function.</p>
+<p>The files from this package should avoid depending on other OAP module except PMem-Common.</p>
+              
+            </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../OAP-Installation-Guide/" class="btn btn-neutral float-right" title="OAP Installation Guide">Next <span class="icon icon-circle-arrow-right"></span></a>
+      
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="versions">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+      
+      
+        <span style="margin-left: 15px"><a href="../OAP-Installation-Guide/" style="color: #fcfcfc">Next &raquo;</a></span>
+      
+    </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
