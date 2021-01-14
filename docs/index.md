@@ -26,31 +26,31 @@ The following are required to configure OAP to use PMem cache in AppDirect mode.
 - PMem hardware is successfully deployed on each node in cluster.
 - Directories exposing PMem hardware on each socket. For example, on a two socket system the mounted PMem directories should appear as `/mnt/pmem0` and `/mnt/pmem1`. Correctly installed PMem must be formatted and mounted on every cluster worker node.
 
-   ```
-   // use ipmctl command to show topology and dimm info of PMem
-   ipmctl show -topology
-   ipmctl show -dimm
-   // provision PMem in app direct mode
-   ipmctl create -goal PersistentMemoryType=AppDirect
-   // reboot system to make configuration take affect
-   reboot
-   // check capacity provisioned for app direct mode(AppDirectCapacity)
-   ipmctl show -memoryresources
-   // show the PMem region information
-   ipmctl show -region
-   // create namespace based on the region, multi namespaces can be created on a single region
-   ndctl create-namespace -m fsdax -r region0
-   ndctl create-namespace -m fsdax -r region1
-   // show the created namespaces
-   fdisk -l
-   // create and mount file system
-   echo y | mkfs.ext4 /dev/pmem0
-   echo y | mkfs.ext4 /dev/pmem1
-   mkdir -p /mnt/pmem0
-   mkdir -p /mnt/pmem1 
-   mount -o dax /dev/pmem0 /mnt/pmem0
-   mount -o dax /dev/pmem1 /mnt/pmem1
-   ```
+```
+// use ipmctl command to show topology and dimm info of PMem
+ipmctl show -topology
+ipmctl show -dimm
+// provision PMem in app direct mode
+ipmctl create -goal PersistentMemoryType=AppDirect
+// reboot system to make configuration take affect
+reboot
+// check capacity provisioned for app direct mode(AppDirectCapacity)
+ipmctl show -memoryresources
+// show the PMem region information
+ipmctl show -region
+// create namespace based on the region, multi namespaces can be created on a single region
+ndctl create-namespace -m fsdax -r region0
+ndctl create-namespace -m fsdax -r region1
+// show the created namespaces
+fdisk -l
+// create and mount file system
+echo y | mkfs.ext4 /dev/pmem0
+echo y | mkfs.ext4 /dev/pmem1
+mkdir -p /mnt/pmem0
+mkdir -p /mnt/pmem1 
+mount -o dax /dev/pmem0 /mnt/pmem0
+mount -o dax /dev/pmem1 /mnt/pmem1
+```
 
    In this case file systems are generated for 2 numa nodes, which can be checked by "numactl --hardware". For a different number of numa nodes, a corresponding number of namespaces should be created to assure correct file system paths mapping to numa nodes.
 
@@ -59,25 +59,25 @@ The following are required to configure OAP to use PMem cache in AppDirect mode.
    The Memkind library depends on `libnuma` at the runtime, so it must already exist in the worker node system.
    Build the latest memkind lib from source:
 
-   ```
-   git clone -b v1.10.1 https://github.com/memkind/memkind
-   cd memkind
-   ./autogen.sh
-   ./configure
-   make
-   make install
-   ```
+```
+git clone -b v1.10.1 https://github.com/memkind/memkind
+cd memkind
+./autogen.sh
+./configure
+make
+make install
+```
 
 - For KMem Dax mode, we need to configure PMem as system ram. Kernel 5.1 or above is required to this mode.
 
-   ```
-   daxctl migrate-device-model
-   ndctl create-namespace --mode=devdax --map=mem
-   ndctl list
-   daxctl reconfigure-device dax0.0 --mode=system-ram
-   daxctl reconfigure-device dax1.0 --mode=system-ram
-   daxctl reconfigure-device daxX.Y --mode=system-ram
-   ```
+```
+daxctl migrate-device-model
+ndctl create-namespace --mode=devdax --map=mem
+ndctl list
+daxctl reconfigure-device dax0.0 --mode=system-ram
+daxctl reconfigure-device dax1.0 --mode=system-ram
+daxctl reconfigure-device daxX.Y --mode=system-ram
+```
 
 Refer [Memkind KMem](https://github.com/memkind/memkind#kernel) for details.
 
@@ -168,7 +168,7 @@ For the scenario that data will exceed the block cache capacity. Memkind 1.9.0 a
 
 ### How to contribute
 
-Currently, OAP Spark packages includes all Spark changed files.
+Currently, PMem Spill packages includes all Spark changed files.
 
 * MemoryMode.java
 * MemoryManager.scala

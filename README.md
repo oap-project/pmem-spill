@@ -172,7 +172,7 @@ For the scenario that data will exceed the block cache capacity. Memkind 1.9.0 a
 
 ### How to contribute
 
-Currently, OAP Spark packages includes all Spark changed files.
+Currently, PMem Spill packages includes all Spark changed files.
 
 * MemoryMode.java
 * MemoryManager.scala
