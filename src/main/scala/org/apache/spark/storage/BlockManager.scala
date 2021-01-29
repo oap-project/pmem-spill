@@ -190,7 +190,7 @@ private[spark] class BlockManager(
   val numNum = conf.getInt("spark.yarn.numa.num", 2)
 
   if (pmemMode.equals("AppDirect")) {
-    if (!isDriver && pmemInitialPaths.size > 1) {
+    if (!isDriver && pmemInitialPaths.size >= 1) {
       if (numaNodeId == -1) {
         numaNodeId = executorId.toInt
       }
