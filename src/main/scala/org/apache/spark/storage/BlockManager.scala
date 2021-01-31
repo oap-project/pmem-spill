@@ -194,7 +194,12 @@ private[spark] class BlockManager(
       if (numaNodeId == -1) {
         numaNodeId = executorId.toInt
       }
-      val path = pmemInitialPaths(numaNodeId % 2)
+      var path:String =""
+      if (pmemInitialPaths.size == 1) {
+       path = pmemInitialPaths(0)
+      }else {
+        path = pmemInitialPaths(numaNodeId % 2)
+      }
       val initPath = path + File.separator + s"executor_${executorId}" + File.pathSeparator
       val file = new File(initPath)
       if (file.exists() && file.isFile) {
