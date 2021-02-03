@@ -210,8 +210,8 @@ private[spark] class BlockManager(
       }
 
       require(file.isDirectory(), "PMem directory is required for initialization")
-      PersistentMemoryPlatform.initialize(path_postfix, pmemInitialSize, 0)
-      logInfo(s"Intel Optane PMem initialized with path: ${path_postfix}, size: ${pmemInitialSize} ")
+      PersistentMemoryPlatform.initialize(file.getAbsolutePath, pmemInitialSize, 0)
+      logInfo(s"Intel Optane PMem initialized with path: ${file.getAbsolutePath}, size: ${pmemInitialSize} ")
     }
   } else if (pmemMode.equals("KMemDax")) {
     if (!isDriver) {
