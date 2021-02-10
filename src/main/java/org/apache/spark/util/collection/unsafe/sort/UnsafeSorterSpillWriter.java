@@ -20,10 +20,10 @@ package org.apache.spark.util.collection.unsafe.sort;
 import java.io.File;
 import java.io.IOException;
 
+import org.apache.spark.executor.TaskMetrics;
 import scala.Tuple2;
 
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkEnv;
 import org.apache.spark.serializer.SerializerManager;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.serializer.DummySerializerInstance;
@@ -33,58 +33,97 @@ import org.apache.spark.storage.DiskBlockObjectWriter;
 import org.apache.spark.storage.TempLocalBlockId;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.internal.config.package$;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Spills a list of sorted records to disk. Spill files have the following format:
  *
  *   [# of records (int)] [[len (int)][prefix (long)][data (bytes)]...]
  */
-public final class UnsafeSorterSpillWriter {
+public class UnsafeSorterSpillWriter implements SpillWriterForUnsafeSorter{
+  private static final Logger logger = LoggerFactory.getLogger(UnsafeSorterSpillWriter.class);
 
-  private final SparkConf conf = new SparkConf();
+  protected final SparkConf conf = new SparkConf();
 
   /**
    * The buffer size to use when writing the sorted records to an on-disk file, and
    * this space used by prefix + len + recordLength must be greater than 4 + 8 bytes.
    */
-  private final int diskWriteBufferSize =
+  protected final int diskWriteBufferSize =
     (int) (long) conf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
 
   // Small writes to DiskBlockObjectWriter will be fairly inefficient. Since there doesn't seem to
   // be an API to directly transfer bytes from managed memory to the disk writer, we buffer
   // data through a byte array.
-  private byte[] writeBuffer = new byte[diskWriteBufferSize];
+  protected byte[] writeBuffer = new byte[diskWriteBufferSize];
 
-  private final File file;
-  private final BlockId blockId;
-  private final int numRecordsToWrite;
-  private DiskBlockObjectWriter writer;
-  private int numRecordsSpilled = 0;
+  protected File file = null;
+  protected BlockId blockId = null;
+  protected int numRecordsToWrite = 0;
+  protected DiskBlockObjectWriter writer;
+  protected int numRecordsSpilled = 0;
 
+  protected UnsafeSorterIterator inMemIterator;
+  protected SerializerManager serializerManager;
+  protected TaskMetrics taskMetrics;
+
+  public UnsafeSorterSpillWriter() {}
   public UnsafeSorterSpillWriter(
       BlockManager blockManager,
       int fileBufferSize,
+      UnsafeSorterIterator inMemIterator,
+      int numRecordsToWrite,
+      SerializerManager serializerManager,
       ShuffleWriteMetrics writeMetrics,
-      int numRecordsToWrite) throws IOException {
+      TaskMetrics taskMetrics) {
     final Tuple2<TempLocalBlockId, File> spilledFileInfo =
       blockManager.diskBlockManager().createTempLocalBlock();
     this.file = spilledFileInfo._2();
     this.blockId = spilledFileInfo._1();
     this.numRecordsToWrite = numRecordsToWrite;
+    this.serializerManager = serializerManager;
+    this.taskMetrics = taskMetrics;
+    this.inMemIterator = inMemIterator;
     // Unfortunately, we need a serializer instance in order to construct a DiskBlockObjectWriter.
     // Our write path doesn't actually use this serializer (since we end up calling the `write()`
     // OutputStream methods), but DiskBlockObjectWriter still calls some methods on it. To work
     // around this, we pass a dummy no-op serializer.
-    boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
-            package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
-
-    writer = pMemSpillEnabled == true ? blockManager.getPMemWriter(
-            blockId, file, DummySerializerInstance.INSTANCE, fileBufferSize, writeMetrics)
-            : blockManager.getDiskWriter(
-            blockId, file, DummySerializerInstance.INSTANCE, fileBufferSize, writeMetrics);
+    writer = blockManager.getDiskWriter(
+      blockId, file, DummySerializerInstance.INSTANCE, fileBufferSize, writeMetrics);
     // Write the number of records
     writeIntToBuffer(numRecordsToWrite, 0);
     writer.write(writeBuffer, 0, 4);
+  }
+
+  public UnsafeSorterSpillWriter(
+          BlockManager blockManager,
+          int fileBufferSize,
+          ShuffleWriteMetrics writeMetrics,
+          int numRecordsToWrite) throws IOException {
+    this(blockManager,
+         fileBufferSize,
+        null,
+         numRecordsToWrite,
+        null,
+         writeMetrics,
+        null);
+  }
+
+  public UnsafeSorterSpillWriter(
+          BlockManager blockManager,
+          int fileBufferSize,
+          UnsafeSorterIterator inMemIterator,
+          SerializerManager serializerManager,
+          ShuffleWriteMetrics writeMetrics,
+          TaskMetrics taskMetrics)  throws IOException {
+    this(blockManager,
+         fileBufferSize,
+         inMemIterator,
+         inMemIterator.getNumRecords(),
+         serializerManager,
+         writeMetrics,
+         taskMetrics);
   }
 
   // Based on DataOutputStream.writeLong.
@@ -100,7 +139,7 @@ public final class UnsafeSorterSpillWriter {
   }
 
   // Based on DataOutputStream.writeInt.
-  private void writeIntToBuffer(int v, int offset) {
+  protected void writeIntToBuffer(int v, int offset) {
     writeBuffer[offset + 0] = (byte)(v >>> 24);
     writeBuffer[offset + 1] = (byte)(v >>> 16);
     writeBuffer[offset + 2] = (byte)(v >>>  8);
@@ -161,11 +200,50 @@ public final class UnsafeSorterSpillWriter {
     return file;
   }
 
-  public UnsafeSorterSpillReader getReader(SerializerManager serializerManager) throws IOException {
-    return new UnsafeSorterSpillReader(serializerManager, file, blockId);
-  }
-
   public int recordsSpilled() {
     return numRecordsSpilled;
+  }
+
+  @Override
+  public void write() throws IOException {
+    write(false);
+  }
+
+  public void write(boolean alreadyLoad) throws IOException {
+    if (inMemIterator != null) {
+      if (alreadyLoad) {
+        final Object baseObject = inMemIterator.getBaseObject();
+        final long baseOffset = inMemIterator.getBaseOffset();
+        final int recordLength = inMemIterator.getRecordLength();
+        write(baseObject, baseOffset, recordLength, inMemIterator.getKeyPrefix());
+      }
+      while (inMemIterator.hasNext()) {
+        inMemIterator.loadNext();
+        final Object baseObject = inMemIterator.getBaseObject();
+        final long baseOffset = inMemIterator.getBaseOffset();
+        final int recordLength = inMemIterator.getRecordLength();
+        write(baseObject, baseOffset, recordLength, inMemIterator.getKeyPrefix());
+      }
+      close();
+    }
+  }
+
+  public UnsafeSorterSpillReader getReader(SerializerManager serializerManager,
+                                           TaskMetrics taskMetrics) throws IOException {
+    return new UnsafeSorterSpillReader(serializerManager, taskMetrics, file, blockId);
+  }
+
+  @Override
+  public UnsafeSorterIterator getSpillReader() throws IOException{
+    return new UnsafeSorterSpillReader(serializerManager, taskMetrics, file, blockId);
+  }
+
+  @Override
+  public void clearAll() {
+    if (file != null && file.exists()) {
+      if (!file.delete()) {
+        logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
+      }
+    }
   }
 }

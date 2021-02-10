@@ -25,10 +25,6 @@ import java.util.LinkedList;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Closeables;
-import com.intel.oap.common.storage.stream.ChunkInputStream;
-import com.intel.oap.common.storage.stream.DataStore;
-import org.apache.spark.internal.config.package$;
-import org.apache.spark.memory.PMemManagerInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -286,7 +282,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
             }
             try {
               Closeables.close(reader, /* swallowIOException = */ false);
-              reader = spillWriters.getFirst().getReader(serializerManager);
+              reader = spillWriters.getFirst().getReader(serializerManager, null);
               recordsInPage = -1;
             } catch (IOException e) {
               // Scala iterator does not handle exception
@@ -397,23 +393,10 @@ public final class BytesToBytesMap extends MemoryConsumer {
     }
 
     private void handleFailedDelete() {
-      // remove the spill file from disk or pmem
-      boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
-              package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
+      // remove the spill file from disk
       File file = spillWriters.removeFirst().getFile();
-      if(pMemSpillEnabled == true) {
-        try {
-          ChunkInputStream cis = ChunkInputStream.getChunkInputStreamInstance(file.toString(),
-                  new DataStore(PMemManagerInitializer.getPMemManager(),
-                          PMemManagerInitializer.getProperties()));
-          cis.free();
-        } catch (IOException e) {
-          logger.debug(e.toString());
-        }
-      } else {
-        if (file != null && file.exists() && !file.delete()) {
-          logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
-        }
+      if (file != null && file.exists() && !file.delete()) {
+        logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
       }
     }
   }
@@ -835,42 +818,12 @@ public final class BytesToBytesMap extends MemoryConsumer {
     }
     assert(dataPages.isEmpty());
 
-    deleteSpillFiles();
-  }
-
-  /**
-   * Deletes any spill files created by this consumer.
-   */
-  private void deleteSpillFiles() {
-    boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
-            package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
-    if (pMemSpillEnabled == true)
-      deletePMemSpillFiles();
-    else
-      deleteDiskSpillFiles();
-  }
-
-  private void deleteDiskSpillFiles() {
     while (!spillWriters.isEmpty()) {
       File file = spillWriters.removeFirst().getFile();
       if (file != null && file.exists()) {
         if (!file.delete()) {
           logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
         }
-      }
-    }
-  }
-
-  private void deletePMemSpillFiles() {
-    while (!spillWriters.isEmpty()) {
-      File file = spillWriters.removeFirst().getFile();
-      try {
-        ChunkInputStream cis = ChunkInputStream.getChunkInputStreamInstance(file.toString(),
-                new DataStore(PMemManagerInitializer.getPMemManager(),
-                        PMemManagerInitializer.getProperties()));
-        cis.free();
-      } catch (IOException e) {
-        logger.debug(e.toString());
       }
     }
   }

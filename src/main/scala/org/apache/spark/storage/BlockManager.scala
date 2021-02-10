@@ -1289,7 +1289,7 @@ private[spark] class BlockManager(
       syncWrites, writeMetrics, blockId)
   }
 
-  /**
+    /**
     * A short circuited method to get a PMem writer that can write data directly to PMem.
     * The Block will be appended to the PMem stream specified by filename. Callers should handle
     * error cases.

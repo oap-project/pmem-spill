@@ -19,6 +19,8 @@ package org.apache.spark.memory
 
 import javax.annotation.concurrent.GuardedBy
 
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
@@ -26,7 +28,7 @@ import org.apache.spark.storage.BlockId
 import org.apache.spark.storage.memory.MemoryStore
 import org.apache.spark.unsafe.Platform
 import org.apache.spark.unsafe.array.ByteArrayMethods
-import org.apache.spark.unsafe.memory.MemoryAllocator
+import org.apache.spark.unsafe.memory.{MemoryAllocator, MemoryBlock}
 
 /**
  * An abstract memory manager that enforces how memory is shared between execution and storage.
@@ -55,6 +57,8 @@ private[spark] abstract class MemoryManager(
   protected val onHeapExecutionMemoryPool = new ExecutionMemoryPool(this, MemoryMode.ON_HEAP)
   @GuardedBy("this")
   protected val offHeapExecutionMemoryPool = new ExecutionMemoryPool(this, MemoryMode.OFF_HEAP)
+  @GuardedBy("this")
+  protected val extendedMemoryPool = new ExtendedMemoryPool(this)
 
   onHeapStorageMemoryPool.incrementPoolSize(onHeapStorageMemory)
   onHeapExecutionMemoryPool.incrementPoolSize(onHeapExecutionMemory)
@@ -71,7 +75,14 @@ private[spark] abstract class MemoryManager(
   protected[this] val pmemStorageMemory = (pmemInitialSize * pmemUsableRatio).toLong
 
   pmemStorageMemoryPool.incrementPoolSize(pmemStorageMemory)
+  protected[this] val extendedMemorySize = conf.get(MEMORY_EXTENDED_SIZE)
+  extendedMemoryPool.incrementPoolSize((extendedMemorySize * 0.9).toLong)
 
+  private[memory] var _pMemPages = new ArrayBuffer[MemoryBlock];
+
+  private[memory] def pMemPages: ArrayBuffer[MemoryBlock] = {
+    _pMemPages
+  }
   /**
    * Total available on heap memory for storage, in bytes. This amount can vary over time,
    * depending on the MemoryManager implementation.
@@ -86,9 +97,9 @@ private[spark] abstract class MemoryManager(
   def maxOffHeapStorageMemory: Long
 
   /**
-   * Total available pmem memory for storage, in bytes. This amount can vary over time,
-   * depending on the MemoryManager implementation.
-   */
+    * Total available pmem memory for storage, in bytes. This amount can vary over time,
+    * depending on the MemoryManager implementation.
+    */
   def maxPMemStorageMemory: Long
 
   /**
@@ -133,6 +144,18 @@ private[spark] abstract class MemoryManager(
       numBytes: Long,
       taskAttemptId: Long,
       memoryMode: MemoryMode): Long
+
+  /**
+   * try to acquire numBytes of extended memory for current task and return the number
+   * of number of bytes obtained, or 0 if non can be allocated.
+   * @param numBytes
+   * @param taskAttemptId
+   * @return
+   */
+  private[memory]
+  def acquireExtendedMemory(
+      numBytes: Long,
+      taskAttemptId: Long): Long
 
   /**
    * Release numBytes of execution memory belonging to the given task.
@@ -185,6 +208,47 @@ private[spark] abstract class MemoryManager(
     releaseStorageMemory(numBytes, memoryMode)
   }
 
+  /**
+   * release extended memory of given task
+   * @param numBytes
+   * @param taskAttemptId
+   */
+  def releaseExtendedMemory(numBytes: Long, taskAttemptId: Long): Unit = synchronized {
+    extendedMemoryPool.releaseMemory(numBytes, taskAttemptId)
+  }
+
+  /**
+   * release all extended memory occupied by given task
+   * @param taskAttemptId
+   * @return
+   */
+  def releaseAllExtendedMemoryForTask(taskAttemptId: Long): Long = synchronized {
+    extendedMemoryPool.releaseAllMemoryForTask(taskAttemptId)
+  }
+
+  def addPMemPages(pMemPage: MemoryBlock): Unit = synchronized {
+    pMemPages.append(pMemPage);
+  }
+
+  def freeAllPMemPages(): Unit = synchronized {
+    for (pMemPage <- pMemPages) {
+      extendedMemoryAllocator.free(pMemPage);
+    }
+  }
+
+  /**
+   * @param size size of current page request
+   * @return PMem Page that suits for current page request
+   */
+  def getUsablePMemPage(size : Long): MemoryBlock = synchronized {
+    for (pMemPage <- pMemPages) {
+      if (pMemPage.pageNumber == MemoryBlock.FREED_IN_TMM_PAGE_NUMBER &&
+        pMemPage.size() == size) {
+        return pMemPage;
+      }
+    }
+    return null;
+  }
   /**
    * Execution memory currently in use, in bytes.
    */
@@ -285,4 +349,6 @@ private[spark] abstract class MemoryManager(
       case MemoryMode.OFF_HEAP => MemoryAllocator.UNSAFE
     }
   }
+
+  private[memory] final val extendedMemoryAllocator = MemoryAllocator.EXTENDED
 }

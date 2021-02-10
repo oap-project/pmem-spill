@@ -17,11 +17,12 @@
 
 package org.apache.spark.memory
 
+import com.intel.oap.common.unsafe.PersistentMemoryPlatform
 import javax.annotation.concurrent.GuardedBy
-
 import scala.collection.mutable
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.config
 import org.apache.spark.storage.BlockId
 
 class TestMemoryManager(conf: SparkConf)
@@ -33,11 +34,16 @@ class TestMemoryManager(conf: SparkConf)
   private var available = Long.MaxValue
   @GuardedBy("this")
   private val memoryForTask = mutable.HashMap[Long, Long]().withDefaultValue(0L)
+  private var extendedMemoryInitialized = false
 
   override private[memory] def acquireExecutionMemory(
       numBytes: Long,
       taskAttemptId: Long,
       memoryMode: MemoryMode): Long = synchronized {
+    if (conf.get(config.MEMORY_SPILL_PMEM_ENABLED) && extendedMemoryInitialized == false) {
+      PersistentMemoryPlatform.initialize("/dev/shm", 64 * 1024 * 1024, 0)
+      extendedMemoryInitialized = true
+    }
     require(numBytes >= 0)
     val acquired = {
       if (consequentOOM > 0) {
@@ -73,6 +79,16 @@ class TestMemoryManager(conf: SparkConf)
 
   override private[memory] def releaseAllExecutionMemoryForTask(taskAttemptId: Long): Long = {
     memoryForTask.remove(taskAttemptId).getOrElse(0L)
+  }
+
+  override private[memory] def acquireExtendedMemory(
+      numBytes: Long,
+      taskAttemptId: Long): Long = synchronized {
+    if (extendedMemoryInitialized == false) {
+      PersistentMemoryPlatform.initialize("/dev/shm", 64 * 1024 * 1024, 0)
+      extendedMemoryInitialized = true
+    }
+    return extendedMemoryPool.acquireMemory(numBytes, taskAttemptId)
   }
 
   override private[memory] def getExecutionMemoryUsageForTask(taskAttemptId: Long): Long = {
