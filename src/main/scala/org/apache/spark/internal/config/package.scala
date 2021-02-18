@@ -28,6 +28,7 @@ import org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO
 import org.apache.spark.storage.{DefaultTopologyMapper, RandomBlockReplicationPolicy}
 import org.apache.spark.unsafe.array.ByteArrayMethods
 import org.apache.spark.util.Utils
+import org.apache.spark.util.collection.unsafe.sort.PMemSpillWriterType
 import org.apache.spark.util.collection.unsafe.sort.UnsafeSorterSpillReader.MAX_BUFFER_SIZE_BYTES
 
 package object config {
@@ -336,6 +337,57 @@ package object config {
     .checkValue(_ >= 0, "The off-heap memory size must not be negative")
     .createWithDefault(0)
 
+  val MEMORY_SPILL_PMEM_ENABLED =
+    ConfigBuilder("spark.memory.spill.pmem.enabled")
+      .doc("Set memory spill to PMem instead of disk.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val MEMORY_EXTENDED_PATH =
+    ConfigBuilder("spark.memory.extended.path")
+      .doc("intialize path for extended memory")
+      .stringConf
+      .createWithDefault("/mnt/pmem")
+
+  private[spark] val MEMORY_EXTENDED_SIZE = ConfigBuilder("spark.memory.extended.size")
+    .doc("The absolute amount of memory which can be used for extended memory allocation.")
+    .version("1.6.0")
+    .bytesConf(ByteUnit.BYTE)
+    .checkValue(_ >= 0, "The extended memory size must not be negative")
+    .createWithDefault(64 * 1024 * 1024)
+
+  val MEMORY_SPILL_PMEM_SORT_BACKGROUND =
+    ConfigBuilder("spark.memory.spill.pmem.sort.background")
+      .doc("Doing sort and dump pages to PMem concurrently")
+      .booleanConf
+      .createWithDefault(false)
+
+  val MEMORY_SPILL_PMEM_CLFLUSH_ENABLED =
+    ConfigBuilder("spark.memory.spill.pmem.clflush.enabled")
+      .doc("Enable clflush when copy to PMEM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val PMEM_PROPERTY_FILE =
+    ConfigBuilder("spark.memory.spill.pmem.config.file")
+      .doc("A config file used to config Intel PMem settings for memory extension.")
+      .stringConf
+      .createWithDefault("pmem.properties")
+
+  val USAFE_EXTERNAL_SORTER_SPILL_WRITE_TYPE = ConfigBuilder("spark.unsafe.sort.spillwriter.type")
+    .doc("The spill writer type for UnsafeExteranlSorter")
+    .stringConf
+    .createWithDefault(PMemSpillWriterType.WRITE_SORTED_RECORDS_TO_PMEM.toString())
+
+  private[spark] val MEMORY_SPILL_PMEM_READ_BUFFERSIZE =
+    ConfigBuilder("spark.memory.spill.pmem.readBufferSize")
+      .doc("The buffer size, in bytes, to use when reading records from PMem.")
+      .bytesConf(ByteUnit.BYTE)
+      .checkValue(v => v > 12 && v <= ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH,
+        s"The buffer size must be greater than 12 and less than or equal to " +
+          s"${ByteArrayMethods.MAX_ROUNDED_ARRAY_LENGTH}.")
+      .createWithDefaultString("8m")
+
   private[spark] val MEMORY_STORAGE_FRACTION = ConfigBuilder("spark.memory.storageFraction")
     .doc("Amount of storage memory immune to eviction, expressed as a fraction of the " +
       "size of the region set aside by spark.memory.fraction. The higher this is, the " +
@@ -355,18 +407,6 @@ package object config {
     .version("1.6.0")
     .doubleConf
     .createWithDefault(0.6)
-
-  val MEMORY_SPILL_PMEM_ENABLED =
-    ConfigBuilder("spark.memory.spill.pmem.enabled")
-      .doc("Set memory spill to PMem instead of disk.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val PMEM_PROPERTY_FILE =
-    ConfigBuilder("spark.memory.spill.pmem.config.file")
-      .doc("A config file used to config Intel PMem settings for memory extension.")
-      .stringConf
-      .createWithDefault("pmem.properties")
 
   private[spark] val STORAGE_SAFETY_FRACTION = ConfigBuilder("spark.storage.safetyFraction")
     .version("1.1.0")
