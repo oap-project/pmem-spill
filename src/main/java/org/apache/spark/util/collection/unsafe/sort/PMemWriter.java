@@ -95,7 +95,7 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
                 long writeDuration = 0;
                 ExecutorService executorService = Executors.newSingleThreadExecutor();
                 Future<Long> future = executorService.submit(()->dumpPagesToPMem());
-                externalSorter.getInMemSorter().getSortedIterator();
+                inMemSorter.getSortedIterator();
                 try {
                     writeDuration = future.get();
                 } catch (InterruptedException | ExecutionException e) {
@@ -106,7 +106,7 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
             } else if(!isSorted) {
                 dumpPagesToPMem();
                 // get sorted iterator
-                externalSorter.getInMemSorter().getSortedIterator();
+                inMemSorter.getSortedIterator();
                 // update LongArray
                 updateLongArray(inMemSorter.getArray(), totalRecordsWritten, 0);
             } else {
@@ -121,7 +121,7 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
                 diskSpillWriter = new UnsafeSorterSpillWriter(
                         blockManager,
                         fileBufferSize,
-                        sortedIterator,
+                        isSorted? sortedIterator : inMemSorter.getSortedIterator(),
                         numberOfRecordsToWritten,
                         serializerManager,
                         writeMetrics,
@@ -138,6 +138,7 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
                 allocatedPMemPages.add(pMemBlock);
                 pageMap.put(page, pMemBlock);
             } else {
+                freeAllPMemPages();
                 pageMap.clear();
                 return false;
             }
@@ -147,6 +148,7 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
             allocatedPMemPages.add(pMemPageForLongArray);
             pageMap.put(longArrayPage, pMemPageForLongArray);
         } else {
+            freeAllPMemPages();
             pageMap.clear();
             return false;
         }
