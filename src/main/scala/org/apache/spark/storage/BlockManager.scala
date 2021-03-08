@@ -189,7 +189,7 @@ private[spark] class BlockManager(
   val pmemMode = conf.get("spark.memory.pmem.mode", "AppDirect")
   val numNum = conf.getInt("spark.yarn.numa.num", 2)
 
-  if (pmemMode.equals("AppDirect")) {
+  if (memExtensionEnabled && pmemMode.equals("AppDirect")) {
     if (!isDriver && pmemInitialPaths.size >= 1) {
       if (numaNodeId == -1) {
         numaNodeId = executorId.toInt
@@ -213,7 +213,7 @@ private[spark] class BlockManager(
       PersistentMemoryPlatform.initialize(file.getAbsolutePath, pmemInitialSize, 0)
       logInfo(s"Intel Optane PMem initialized with path: ${file.getAbsolutePath}, size: ${pmemInitialSize} ")
     }
-  } else if (pmemMode.equals("KMemDax")) {
+  } else if (memExtensionEnabled && pmemMode.equals("KMemDax")) {
     if (!isDriver) {
       if (numaNodeId == -1) {
         numaNodeId = (executorId.toInt + 1) % 2
