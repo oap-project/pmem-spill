@@ -28,6 +28,7 @@ import scala.util.Properties
 
 import com.google.common.cache.CacheBuilder
 import com.intel.oap.common.unsafe.PersistentMemoryPlatform
+
 import org.apache.hadoop.conf.Configuration
 
 import org.apache.spark.annotation.DeveloperApi
