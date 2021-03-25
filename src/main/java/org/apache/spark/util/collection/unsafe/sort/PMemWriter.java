@@ -180,7 +180,8 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
             // update recordPointer in this array
             long originalRecordPointer = sortedArray.get(position);
             MemoryBlock page = taskMemoryManager.getOriginalPage(originalRecordPointer);
-            long offset = taskMemoryManager.getOffsetInPage(originalRecordPointer) - page.getBaseOffset();
+            long baseOffset = page == null? 0: page.getBaseOffset();
+            long offset = taskMemoryManager.getOffsetInPage(originalRecordPointer) - baseOffset;
             MemoryBlock pMemBlock = pageMap.get(page);
             long pMemOffset = pMemBlock.getBaseOffset() + offset;
             sortedArray.set(position, pMemOffset);
