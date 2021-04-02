@@ -262,6 +262,9 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
         taskContext.taskMetrics(),
         spillToPMemEnabled,
         isSorted);
+    if (spillWriter == null) {
+      logger.error("failed to get SpillWriter, please check related configuration.");
+    }
     spillWriter.write();
     spillWriters.add(spillWriter);
     return spillWriter;
