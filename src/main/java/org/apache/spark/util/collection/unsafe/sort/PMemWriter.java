@@ -167,6 +167,9 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
 
     private void dumpPageToPMem(MemoryBlock page) {
         MemoryBlock pMemBlock = pageMap.get(page);
+        if (pMemBlock == null) {
+            logger.error("Fail to copy data to PMem as no corresponding PMem page found.");
+        }
         PersistentMemoryPlatform.copyMemory(
             page.getBaseObject(), page.getBaseOffset(),
             null, pMemBlock.getBaseOffset(), page.size(),
@@ -190,6 +193,9 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
         // copy the LongArray to PMem
         MemoryBlock arrayBlock = sortedArray.memoryBlock();
         MemoryBlock pMemBlock = pageMap.get(arrayBlock);
+        if (pMemBlock == null) {
+            logger.error("failed to update LongArray as no pair PMem page found.");
+        }
         PersistentMemoryPlatform.copyMemory(
             arrayBlock.getBaseObject(), arrayBlock.getBaseOffset(),
             null, pMemBlock.getBaseOffset(), arrayBlock.size(),
