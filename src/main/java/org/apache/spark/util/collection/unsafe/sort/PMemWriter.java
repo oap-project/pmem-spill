@@ -169,12 +169,13 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
         MemoryBlock pMemBlock = pageMap.get(page);
         if (pMemBlock == null) {
             logger.error("Fail to copy data to PMem as no corresponding PMem page found.");
+        } else {
+            PersistentMemoryPlatform.copyMemory(
+                    page.getBaseObject(), page.getBaseOffset(),
+                    null, pMemBlock.getBaseOffset(), page.size(),
+                    pMemClflushEnabled);
+            writeMetrics.incBytesWritten(page.size());
         }
-        PersistentMemoryPlatform.copyMemory(
-            page.getBaseObject(), page.getBaseOffset(),
-            null, pMemBlock.getBaseOffset(), page.size(),
-            pMemClflushEnabled);
-        writeMetrics.incBytesWritten(page.size());
     }
 
     public void updateLongArray(LongArray sortedArray, int numRecords, int position) {
@@ -186,22 +187,27 @@ public final class PMemWriter extends UnsafeSorterPMemSpillWriter {
             long baseOffset = page == null? 0: page.getBaseOffset();
             long offset = taskMemoryManager.getOffsetInPage(originalRecordPointer) - baseOffset;
             MemoryBlock pMemBlock = pageMap.get(page);
-            long pMemOffset = pMemBlock.getBaseOffset() + offset;
-            sortedArray.set(position, pMemOffset);
-            position += 2;
+            if (pMemBlock == null) {
+                logger.error("No PMem page found corresponding with LongArrayPage");
+            } else {
+                long pMemOffset = pMemBlock.getBaseOffset() + offset;
+                sortedArray.set(position, pMemOffset);
+                position += 2;
+            }
         }
         // copy the LongArray to PMem
         MemoryBlock arrayBlock = sortedArray.memoryBlock();
         MemoryBlock pMemBlock = pageMap.get(arrayBlock);
         if (pMemBlock == null) {
             logger.error("failed to update LongArray as no pair PMem page found.");
+        } else {
+            PersistentMemoryPlatform.copyMemory(
+                    arrayBlock.getBaseObject(), arrayBlock.getBaseOffset(),
+                    null, pMemBlock.getBaseOffset(), arrayBlock.size(),
+                    pMemClflushEnabled);
+            writeMetrics.incBytesWritten(pMemBlock.size());
+            this.sortedArray = new LongArray(pMemBlock);
         }
-        PersistentMemoryPlatform.copyMemory(
-            arrayBlock.getBaseObject(), arrayBlock.getBaseOffset(),
-            null, pMemBlock.getBaseOffset(), arrayBlock.size(),
-            pMemClflushEnabled);
-        writeMetrics.incBytesWritten(pMemBlock.size());
-        this.sortedArray = new LongArray(pMemBlock);
     }
 
     @Override
