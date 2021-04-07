@@ -264,10 +264,12 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
         isSorted);
     if (spillWriter == null) {
       logger.error("failed to get SpillWriter, please check related configuration.");
+      return null;
+    } else {
+      spillWriter.write();
+      spillWriters.add(spillWriter);
+      return spillWriter;
     }
-    spillWriter.write();
-    spillWriters.add(spillWriter);
-    return spillWriter;
   }
 
   /**
@@ -549,7 +551,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
         long released = 0L;
         SpillWriterForUnsafeSorter spillWriter = spillWithWriter(inMemIterator, numRecords, writeMetrics, true);
         nextUpstream = spillWriter.getSpillReader();
-
+        assert(nextUpstream != null);
         synchronized (UnsafeExternalSorter.this) {
           // release the pages except the one that is used. There can still be a caller that
           // is accessing the current record. We free this page in that caller's next loadNext()
