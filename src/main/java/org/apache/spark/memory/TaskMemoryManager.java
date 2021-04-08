@@ -544,6 +544,12 @@ public class TaskMemoryManager {
       assert (page != null);
       assert (page.getBaseObject() != null);
       return page;
+    } else if (tungstenMemoryMode == MemoryMode.OFF_HEAP) {
+      final int pageNumber = decodePageNumber(pagePlusOffsetAddress);
+      assert (pageNumber >= 0 && pageNumber < PAGE_TABLE_SIZE);
+      final MemoryBlock page = pageTable[pageNumber];
+      assert (page != null);
+      return page;
     } else {
       return null;
     }
