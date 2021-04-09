@@ -537,14 +537,7 @@ public class TaskMemoryManager {
   }
 
   public MemoryBlock getOriginalPage(long pagePlusOffsetAddress) {
-    if (tungstenMemoryMode == MemoryMode.ON_HEAP) {
-      final int pageNumber = decodePageNumber(pagePlusOffsetAddress);
-      assert (pageNumber >= 0 && pageNumber < PAGE_TABLE_SIZE);
-      final MemoryBlock page = pageTable[pageNumber];
-      assert (page != null);
-      assert (page.getBaseObject() != null);
-      return page;
-    } else if (tungstenMemoryMode == MemoryMode.OFF_HEAP) {
+    if (tungstenMemoryMode == MemoryMode.ON_HEAP || tungstenMemoryMode == MemoryMode.OFF_HEAP) {
       final int pageNumber = decodePageNumber(pagePlusOffsetAddress);
       assert (pageNumber >= 0 && pageNumber < PAGE_TABLE_SIZE);
       final MemoryBlock page = pageTable[pageNumber];
