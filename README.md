@@ -99,6 +99,7 @@ You will find jar files under oap-common/target and oap-spark/target.
 
 To enable rdd cache on Intel Optane PMem, you need add the following configurations to `spark-defaults.conf`
 ```
+spark.memory.pmem.extension.enabled true
 spark.memory.pmem.initial.path [Your Optane PMem paths seperate with comma]
 spark.memory.pmem.initial.size [Your Optane PMem size in GB]
 spark.memory.pmem.usable.ratio [from 0 to 1, 0.85 is recommended]
