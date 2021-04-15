@@ -25,10 +25,6 @@ import java.util.LinkedList;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Closeables;
-import com.intel.oap.common.storage.stream.ChunkInputStream;
-import com.intel.oap.common.storage.stream.DataStore;
-import org.apache.spark.internal.config.package$;
-import org.apache.spark.memory.PMemManagerInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -286,7 +282,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
             }
             try {
               Closeables.close(reader, /* swallowIOException = */ false);
-              reader = spillWriters.getFirst().getReader(serializerManager);
+              reader = spillWriters.getFirst().getReader(serializerManager, null);
               recordsInPage = -1;
             } catch (IOException e) {
               // Scala iterator does not handle exception
@@ -397,20 +393,9 @@ public final class BytesToBytesMap extends MemoryConsumer {
     }
 
     private void handleFailedDelete() {
-      // remove the spill file from disk or pmem
-      boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
-              package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
-      File file = spillWriters.removeFirst().getFile();
-      if(pMemSpillEnabled == true) {
-        try {
-          ChunkInputStream cis = ChunkInputStream.getChunkInputStreamInstance(file.toString(),
-                  new DataStore(PMemManagerInitializer.getPMemManager(),
-                          PMemManagerInitializer.getProperties()));
-          cis.free();
-        } catch (IOException e) {
-          logger.debug(e.toString());
-        }
-      } else {
+      if (spillWriters.size() > 0) {
+        // remove the spill file from disk
+        File file = spillWriters.removeFirst().getFile();
         if (file != null && file.exists() && !file.delete()) {
           logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
         }
@@ -423,17 +408,10 @@ public final class BytesToBytesMap extends MemoryConsumer {
    *
    * For efficiency, all calls to `next()` will return the same {@link Location} object.
    *
-   * If any other lookups or operations are performed on this map while iterating over it, including
-   * `lookup()`, the behavior of the returned iterator is undefined.
+   * The returned iterator is thread-safe. However if the map is modified while iterating over it,
+   * the behavior of the returned iterator is undefined.
    */
   public MapIterator iterator() {
-    return new MapIterator(numValues, loc, false);
-  }
-
-  /**
-   * Returns a thread safe iterator that iterates of the entries of this map.
-   */
-  public MapIterator safeIterator() {
     return new MapIterator(numValues, new Location(), false);
   }
 
@@ -444,23 +422,86 @@ public final class BytesToBytesMap extends MemoryConsumer {
    *
    * For efficiency, all calls to `next()` will return the same {@link Location} object.
    *
-   * If any other lookups or operations are performed on this map while iterating over it, including
-   * `lookup()`, the behavior of the returned iterator is undefined.
+   * The returned iterator is thread-safe. However if the map is modified while iterating over it,
+   * the behavior of the returned iterator is undefined.
    */
   public MapIterator destructiveIterator() {
     updatePeakMemoryUsed();
-    return new MapIterator(numValues, loc, true);
+    return new MapIterator(numValues, new Location(), true);
+  }
+
+  /**
+   * Iterator for the entries of this map. This is to first iterate over key indices in
+   * `longArray` then accessing values in `dataPages`. NOTE: this is different from `MapIterator`
+   * in the sense that key index is preserved here
+   * (See `UnsafeHashedRelation` for example of usage).
+   */
+  public final class MapIteratorWithKeyIndex implements Iterator<Location> {
+
+    /**
+     * The index in `longArray` where the key is stored.
+     */
+    private int keyIndex = 0;
+
+    private int numRecords;
+    private final Location loc;
+
+    private MapIteratorWithKeyIndex() {
+      this.numRecords = numValues;
+      this.loc = new Location();
+    }
+
+    @Override
+    public boolean hasNext() {
+      return numRecords > 0;
+    }
+
+    @Override
+    public Location next() {
+      if (!loc.isDefined() || !loc.nextValue()) {
+        while (longArray.get(keyIndex * 2) == 0) {
+          keyIndex++;
+        }
+        loc.with(keyIndex, 0, true);
+        keyIndex++;
+      }
+      numRecords--;
+      return loc;
+    }
+  }
+
+  /**
+   * Returns an iterator for iterating over the entries of this map,
+   * by first iterating over the key index inside hash map's `longArray`.
+   *
+   * For efficiency, all calls to `next()` will return the same {@link Location} object.
+   *
+   * The returned iterator is NOT thread-safe. If the map is modified while iterating over it,
+   * the behavior of the returned iterator is undefined.
+   */
+  public MapIteratorWithKeyIndex iteratorWithKeyIndex() {
+    return new MapIteratorWithKeyIndex();
+  }
+
+  /**
+   * The maximum number of allowed keys index.
+   *
+   * The value of allowed keys index is in the range of [0, maxNumKeysIndex - 1].
+   */
+  public int maxNumKeysIndex() {
+    return (int) (longArray.size() / 2);
   }
 
   /**
    * Looks up a key, and return a {@link Location} handle that can be used to test existence
    * and read/write values.
    *
-   * This function always return the same {@link Location} instance to avoid object allocation.
+   * This function always returns the same {@link Location} instance to avoid object allocation.
+   * This function is not thread-safe.
    */
   public Location lookup(Object keyBase, long keyOffset, int keyLength) {
     safeLookup(keyBase, keyOffset, keyLength, loc,
-      Murmur3_x86_32.hashUnsafeWords(keyBase, keyOffset, keyLength, 42));
+            Murmur3_x86_32.hashUnsafeWords(keyBase, keyOffset, keyLength, 42));
     return loc;
   }
 
@@ -468,7 +509,8 @@ public final class BytesToBytesMap extends MemoryConsumer {
    * Looks up a key, and return a {@link Location} handle that can be used to test existence
    * and read/write values.
    *
-   * This function always return the same {@link Location} instance to avoid object allocation.
+   * This function always returns the same {@link Location} instance to avoid object allocation.
+   * This function is not thread-safe.
    */
   public Location lookup(Object keyBase, long keyOffset, int keyLength, int hash) {
     safeLookup(keyBase, keyOffset, keyLength, loc, hash);
@@ -624,6 +666,14 @@ public final class BytesToBytesMap extends MemoryConsumer {
     }
 
     /**
+     * Returns index for key.
+     */
+    public int getKeyIndex() {
+      assert (isDefined);
+      return pos;
+    }
+
+    /**
      * Returns the base object for key.
      */
     public Object getKeyBase() {
@@ -760,12 +810,21 @@ public final class BytesToBytesMap extends MemoryConsumer {
         longArray.set(pos * 2 + 1, keyHashcode);
         isDefined = true;
 
-        // We use two array entries per key, so the array size is twice the capacity.
-        // We should compare the current capacity of the array, instead of its size.
-        if (numKeys >= growthThreshold && longArray.size() / 2 < MAX_CAPACITY) {
-          try {
-            growAndRehash();
-          } catch (SparkOutOfMemoryError oom) {
+        // If the map has reached its growth threshold, try to grow it.
+        if (numKeys >= growthThreshold) {
+          // We use two array entries per key, so the array size is twice the capacity.
+          // We should compare the current capacity of the array, instead of its size.
+          if (longArray.size() / 2 < MAX_CAPACITY) {
+            try {
+              growAndRehash();
+            } catch (SparkOutOfMemoryError oom) {
+              canGrowArray = false;
+            }
+          } else {
+            // The map is already at MAX_CAPACITY and cannot grow. Instead, we prevent it from
+            // accepting any more new elements to make sure we don't exceed the load factor. If we
+            // need to spill later, this allows UnsafeKVExternalSorter to reuse the array for
+            // sorting.
             canGrowArray = false;
           }
         }
@@ -835,42 +894,12 @@ public final class BytesToBytesMap extends MemoryConsumer {
     }
     assert(dataPages.isEmpty());
 
-    deleteSpillFiles();
-  }
-
-  /**
-   * Deletes any spill files created by this consumer.
-   */
-  private void deleteSpillFiles() {
-    boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
-            package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
-    if (pMemSpillEnabled == true)
-      deletePMemSpillFiles();
-    else
-      deleteDiskSpillFiles();
-  }
-
-  private void deleteDiskSpillFiles() {
     while (!spillWriters.isEmpty()) {
       File file = spillWriters.removeFirst().getFile();
       if (file != null && file.exists()) {
         if (!file.delete()) {
           logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
         }
-      }
-    }
-  }
-
-  private void deletePMemSpillFiles() {
-    while (!spillWriters.isEmpty()) {
-      File file = spillWriters.removeFirst().getFile();
-      try {
-        ChunkInputStream cis = ChunkInputStream.getChunkInputStreamInstance(file.toString(),
-                new DataStore(PMemManagerInitializer.getPMemManager(),
-                        PMemManagerInitializer.getProperties()));
-        cis.free();
-      } catch (IOException e) {
-        logger.debug(e.toString());
       }
     }
   }
