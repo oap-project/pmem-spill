@@ -19,15 +19,13 @@ package org.apache.spark.util.collection.unsafe.sort;
 
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
-import com.intel.oap.common.storage.stream.ChunkInputStream;
-import com.intel.oap.common.storage.stream.DataStore;
 import org.apache.spark.SparkEnv;
 import org.apache.spark.TaskContext;
+import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.internal.config.ConfigEntry;
 import org.apache.spark.io.NioBufferedFileInputStream;
 import org.apache.spark.io.ReadAheadInputStream;
-import org.apache.spark.memory.PMemManagerInitializer;
 import org.apache.spark.serializer.SerializerManager;
 import org.apache.spark.storage.BlockId;
 import org.apache.spark.unsafe.Platform;
@@ -38,26 +36,34 @@ import java.io.*;
  * Reads spill files written by {@link UnsafeSorterSpillWriter} (see that class for a description
  * of the file format).
  */
-public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implements Closeable {
+public class UnsafeSorterSpillReader extends UnsafeSorterIterator implements Closeable {
   public static final int MAX_BUFFER_SIZE_BYTES = 16777216; // 16 mb
 
-  private InputStream in;
-  private DataInputStream din;
+  protected InputStream in;
+  protected DataInputStream din;
 
   // Variables that change with every record read:
-  private int recordLength;
-  private long keyPrefix;
-  private int numRecords;
-  private int numRecordsRemaining;
+  protected int recordLength;
+  protected long keyPrefix;
+  protected int numRecords;
+  protected int numRecordsRemaining;
 
-  private byte[] arr = new byte[1024 * 1024];
-  private Object baseObject = arr;
-  private final TaskContext taskContext = TaskContext.get();
+  protected byte[] arr = new byte[1024 * 1024];
+  protected Object baseObject = arr;
+  protected final TaskContext taskContext = TaskContext.get();
+  protected final TaskMetrics taskMetrics;
+
+  public UnsafeSorterSpillReader(TaskMetrics taskMetrics) {
+    this.taskMetrics = taskMetrics;
+  }
 
   public UnsafeSorterSpillReader(
       SerializerManager serializerManager,
+      TaskMetrics taskMetrics,
       File file,
       BlockId blockId) throws IOException {
+    assert (file.length() > 0);
+    this.taskMetrics = taskMetrics;
     final ConfigEntry<Object> bufferSizeConfigEntry =
         package$.MODULE$.UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE();
     // This value must be less than or equal to MAX_BUFFER_SIZE_BYTES. Cast to int is always safe.
@@ -69,12 +75,8 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
     final boolean readAheadEnabled = SparkEnv.get() != null && (boolean)SparkEnv.get().conf().get(
         package$.MODULE$.UNSAFE_SORTER_SPILL_READ_AHEAD_ENABLED());
 
-    boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
-            package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
-    final InputStream bs = pMemSpillEnabled ? ChunkInputStream.getChunkInputStreamInstance(file.toString(),
-            new DataStore(PMemManagerInitializer.getPMemManager(),
-                    PMemManagerInitializer.getProperties())) :
-            new NioBufferedFileInputStream(file, bufferSizeBytes);
+    final InputStream bs =
+        new NioBufferedFileInputStream(file, bufferSizeBytes);
     try {
       if (readAheadEnabled) {
         this.in = new ReadAheadInputStream(serializerManager.wrapStream(blockId, bs),
@@ -93,6 +95,11 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
   @Override
   public int getNumRecords() {
     return numRecords;
+  }
+
+  @Override
+  public long getCurrentPageNumber() {
+    throw new UnsupportedOperationException();
   }
 
   @Override
