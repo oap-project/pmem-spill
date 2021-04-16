@@ -15,7 +15,7 @@
         <junit.version>4.12</junit.version>
         <scala.version>2.12.10</scala.version>
         <scala.binary.version>2.12</scala.binary.version>
-        <spark.internal.version>3.0.0</spark.internal.version>
+        <spark.internal.version>3.1.1</spark.internal.version>
         <maven-patch-plugin.version>1.2</maven-patch-plugin.version>
         <maven-resource-plugin.version>2.6</maven-resource-plugin.version>
         <jetty.version>9.4.39.v20210325</jetty.version>
