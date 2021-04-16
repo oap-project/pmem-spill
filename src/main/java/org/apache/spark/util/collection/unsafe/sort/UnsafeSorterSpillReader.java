@@ -98,6 +98,11 @@ public class UnsafeSorterSpillReader extends UnsafeSorterIterator implements Clo
   }
 
   @Override
+  public long getCurrentPageNumber() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public boolean hasNext() {
     return (numRecordsRemaining > 0);
   }
