@@ -108,4 +108,3 @@ private[memory] class ExtendedMemoryPool(lock: Object) extends MemoryPool(lock) 
     numBytesToFree
   }
 }
-
