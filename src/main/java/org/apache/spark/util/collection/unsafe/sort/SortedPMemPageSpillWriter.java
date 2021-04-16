@@ -212,6 +212,12 @@ public class SortedPMemPageSpillWriter extends UnsafeSorterPMemSpillWriter {
                 numRecordsOnDisk = diskSpillWriter.recordsSpilled();
             }
         }
+        
+        @Override
+        public long getCurrentPageNumber() {
+           throw new UnsupportedOperationException();
+        }
+  
         @Override
         public boolean hasNext() {
             return curNumOfRec < numRecordsOnPMem + numRecordsOnDisk;
