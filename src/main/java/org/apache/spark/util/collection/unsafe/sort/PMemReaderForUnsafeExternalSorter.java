@@ -64,6 +64,11 @@ public final class PMemReaderForUnsafeExternalSorter extends UnsafeSorterIterato
     public int getNumRecords() {
         return numRecords;
     }
+    
+    @Override
+    public long getCurrentPageNumber() {
+        throw new UnsupportedOperationException();
+    } 
 
     /**
      * load more PMem records in the buffer

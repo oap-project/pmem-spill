@@ -79,6 +79,11 @@ public final class PMemReader extends UnsafeSorterIterator implements Closeable 
     public long getKeyPrefix() {
         return keyPrefix;
     }
+    
+   @Override
+    public long getCurrentPageNumber() {
+        throw new UnsupportedOperationException();
+   } 
 
     @Override
     public void close() {

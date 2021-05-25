@@ -125,9 +125,12 @@ class SparkEnv (
   private[spark]
   def destroyPythonWorker(pythonExec: String,
       envVars: Map[String, String], worker: Socket): Unit = {
-    synchronized {
-      val key = (pythonExec, envVars)
-      pythonWorkers.get(key).foreach(_.stopWorker(worker))
+    def destroyPythonWorker(pythonExec: String,
+                            envVars: Map[String, String], worker: Socket): Unit = {
+      synchronized {
+        val key = (pythonExec, envVars)
+        pythonWorkers.get(key).foreach(_.stopWorker(worker))
+      }
     }
   }
 
@@ -377,7 +380,8 @@ object SparkEnv extends Logging {
             externalShuffleClient
           } else {
             None
-          }, blockManagerInfo)),
+          }, blockManagerInfo,
+          mapOutputTracker.asInstanceOf[MapOutputTrackerMaster])),
       registerOrLookupEndpoint(
         BlockManagerMaster.DRIVER_HEARTBEAT_ENDPOINT_NAME,
         new BlockManagerMasterHeartbeatEndpoint(rpcEnv, isLocal, blockManagerInfo)),
@@ -463,7 +467,8 @@ object SparkEnv extends Logging {
       hadoopConf: Configuration,
       schedulingMode: String,
       addedJars: Seq[String],
-      addedFiles: Seq[String]): Map[String, Seq[(String, String)]] = {
+      addedFiles: Seq[String],
+      addedArchives: Seq[String]): Map[String, Seq[(String, String)]] = {
 
     import Properties._
     val jvmInformation = Seq(
@@ -493,7 +498,7 @@ object SparkEnv extends Logging {
       .split(File.pathSeparator)
       .filterNot(_.isEmpty)
       .map((_, "System Classpath"))
-    val addedJarsAndFiles = (addedJars ++ addedFiles).map((_, "Added By User"))
+    val addedJarsAndFiles = (addedJars ++ addedFiles ++ addedArchives).map((_, "Added By User"))
     val classPaths = (addedJarsAndFiles ++ classPathEntries).sorted
 
     // Add Hadoop properties, it will not ignore configs including in Spark. Some spark
