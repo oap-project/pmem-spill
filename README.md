@@ -15,12 +15,34 @@ You can find the all the PMem Spill documents on the [project web page](https://
 
 ## Introduction
 
-PMem Spill supports RDD Cache with Optane PMem. Spark has various storage levels serving for different purposes including memory and disk.
+Spark supports to cache RDDs in memory and disk. We know that memory is small in size and costly. Disks are much slower, although with large capacity. 
+PMem Spill supports RDD Cache with Intel Optane PMem, adds PMem storage level to the existing RDD cache solutions besides memory and disk.
+
+### RDD Persistence
+
+One of the most important capabilities in Spark is persisting (or caching) a dataset across operations, each persisted RDD can be stored using a different *storage level*, allowing you, for example,
+to persist the dataset on disk, persist it in memory but as serialized Java objects (to save space), replicate it across nodes. 
+These levels are set by passing a `StorageLevel` object, to `persist()`. The `cache()` method is a shorthand for using the default storage level,
+which is `StorageLevel.MEMORY_ONLY` (store deserialized objects in memory). The full set of storage levels is:
+
+| Storage Level | Meaning | 
+| :----- | :----- |
+| MEMORY_ONLY | Store RDD as deserialized Java objects in the JVM. If the RDD does not fit in memory, some partitions will not be cached and will be recomputed on the fly each time they're needed. This is the default level. |
+| MEMORY_AND_DISK | Store RDD as deserialized Java objects in the JVM. If the RDD does not fit in memory, store the partitions that don't fit on disk, and read them from there when they're needed. |
+| MEMORY_ONLY_SER (Java and Scala) | Store RDD as *serialized* Java objects (one byte array per partition). This is generally more space-efficient than deserialized objects, especially when using a fast serializer, but more CPU-intensive to read. |
+| MEMORY_AND_DISK_SER (Java and Scala) | Similar to MEMORY_ONLY_SER, but spill partitions that don't fit in memory to disk instead of recomputing them on the fly each time they're needed. |
+| DISK_ONLY | Store the RDD partitions only on disk. |
+| MEMORY_ONLY_2, MEMORY_AND_DISK_2, etc. | Same as the levels above, but replicate each partition on two cluster nodes. |
+| OFF_HEAP (experimental) | Similar to MEMORY_ONLY_SER, but store the data in off-heap memory. This requires off-heap memory to be enabled. |
+| PMEM_ONLY | Similar to MEMORY_ONLY_SER, but spill partitions that don't fit in memory to *Intel Optane PMem* instead of recomputing them on the fly each time they're needed. |
+| PMEM_AND_DISK | Similar to MEMORY_AND_DISK_SER, but spill partitions that don't fit in memory to *Intel Optane PMem* and disk instead of recomputing them on the fly each time they're needed. |
+
+### Which Storage Level to Choose?
+
+Spark's storage levels are meant to provide different trade-offs between memory usage and CPU efficiency. 
 
 PMem storage level is added to support a new tier for storage level besides memory and disk.
-
 Using PMem library to access Optane PMem can help to avoid the overhead from disk.
-
 Large capacity and high I/O performance of PMem shows better performance than tied DRAM and disk solution under the same cost.
 
 ## User Guide
