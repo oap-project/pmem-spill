@@ -86,7 +86,7 @@ The following are required to configure OAP to use PMem cache in AppDirect mode.
    In this case file systems are generated for 2 numa nodes, which can be checked by "numactl --hardware". For a different number of numa nodes, a corresponding number of namespaces should be created to assure correct file system paths mapping to numa nodes.
 
 
-- Make sure [Memkind](https://github.com/memkind/memkind/tree/v1.10.1-rc2) library installed on every cluster worker node. Compile Memkind based on your system or directly place our pre-built binary of [libmemkind.so.0](https://github.com/Intel-bigdata/OAP/releases/download/v1.0.0-spark-3.0.0/libmemkind.so.0) for x86 64bit CentOS Linux in the `/lib64/`directory of each worker node in cluster.
+- Make sure [Memkind](https://github.com/memkind/memkind/tree/v1.10.1) library installed on every cluster worker node.  
    The Memkind library depends on `libnuma` at the runtime, so it must already exist in the worker node system.
    Build the latest memkind lib from source:
 
@@ -115,6 +115,14 @@ Refer [Memkind KMem](https://github.com/memkind/memkind#kernel) for details.
 
 ### Compiling
 
+Before building PMem Spill, install PMem-Common locally:
+
+```
+git clone -b <tag-version> https://github.com/oap-project/pmem-common.git
+cd pmem-common
+mvn clean install -DskipTests
+```
+
 To build pmem spill, you can run below commands:
 ```
 cd ${PMEM-SPILL}
@@ -134,9 +142,9 @@ spark.yarn.numa.enabled true
 spark.yarn.numa.num [Your numa node number]
 spark.memory.pmem.mode [AppDirect | KMemDax]
 
-spark.files                       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-spill-<version>-with-spark-<version>.jar,file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-<version>-with-spark-<version>.jar
-spark.executor.extraClassPath     ./pmem-spill-<version>-with-spark-<version>.jar:./pmem-common-<version>-with-spark-<version>.jar
-spark.driver.extraClassPath       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-spill-<version>-with-spark-<version>.jar:file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-<version>-with-spark-<version>.jar
+spark.files                       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-rdd-cache-<version>-with-spark-<version>.jar,file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-<version>-with-spark-<version>.jar
+spark.executor.extraClassPath     ./pmem-rdd-cache-<version>-with-spark-<version>.jar:./pmem-common-<version>-with-spark-<version>.jar
+spark.driver.extraClassPath       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-rdd-cache-<version>-with-spark-<version>.jar:file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-<version>-with-spark-<version>.jar
 ```
 
 ### Use Optane PMem to cache data
