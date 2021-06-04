@@ -64,3 +64,23 @@ Building specified OAP Module, such as `sql-ds-cache`, run:
 ```
 $ sh $OAP_TOOLS_HOME/dev/compile-oap.sh --sql-ds-cache
 ```
+
+## Enabling NUMA binding for PMem in Spark
+
+### Rebuilding Spark packages with NUMA binding patch 
+
+When using PMem as a cache medium apply the [NUMA](https://www.kernel.org/doc/html/v4.18/vm/numa.html) binding patch [numa-binding-spark-3.1.1.patch](./numa-binding-spark-3.1.1.patch) to Spark source code for best performance.
+
+1. Download src for [Spark-3.1.1](https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1.tgz) and clone the src from github.
+
+2. Apply this patch and [rebuild](https://spark.apache.org/docs/latest/building-spark.html) the Spark package.
+
+```
+git apply numa-binding-spark-3.1.1.patch
+```
+
+3. Add these configuration items to the Spark configuration file $SPARK_HOME/conf/spark-defaults.conf to enable NUMA binding.
+
+```
+spark.yarn.numa.enabled true 
+```
