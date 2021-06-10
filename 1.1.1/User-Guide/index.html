@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../img/favicon.ico">
-  <title>User Guide - PMem Spill - master</title>
+  <title>User Guide - PMem Spill - 1.1.1</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../css/theme.css" />
@@ -38,7 +38,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-        <a href=".." class="icon icon-home"> PMem Spill - master</a>
+        <a href=".." class="icon icon-home"> PMem Spill - 1.1.1</a>
         <div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
@@ -53,6 +53,12 @@
     <li class="toctree-l2"><a class="reference internal" href="#contents">Contents</a>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#rdd-persistence">RDD Persistence</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#which-storage-level-to-choose">Which Storage Level to Choose?</a>
+    </li>
+        </ul>
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#user-guide">User Guide</a>
         <ul>
@@ -98,7 +104,7 @@
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
         <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="..">PMem Spill - master</a>
+        <a href="..">PMem Spill - 1.1.1</a>
       </nav>
 
       
@@ -128,10 +134,64 @@
 <li><a href="#user-guide">User Guide</a></li>
 </ul>
 <h2 id="introduction">Introduction</h2>
-<p>PMem Spill supports RDD Cache with Optane PMem. Spark has various storage levels serving for different purposes including memory and disk.</p>
-<p>PMem storage level is added to support a new tier for storage level besides memory and disk.</p>
-<p>Using PMem library to access Optane PMem can help to avoid the overhead from disk.</p>
-<p>Large capacity and high I/O performance of PMem shows better performance than tied DRAM and disk solution under the same cost.</p>
+<p>Spark supports to cache RDDs in memory and disk. We know that memory is small in size and costly. Disks are much slower, although with large capacity. 
+PMem Spill supports RDD Cache with Intel Optane PMem, adds PMem storage level to the existing RDD cache solutions besides memory and disk.</p>
+<h3 id="rdd-persistence">RDD Persistence</h3>
+<p>One of the most important capabilities in Spark is persisting (or caching) a dataset across operations, each persisted RDD can be stored using a different <em>storage level</em>, allowing you, for example,
+to persist the dataset on disk, persist it in memory but as serialized Java objects (to save space), replicate it across nodes. 
+These levels are set by passing a <code>StorageLevel</code> object, to <code>persist()</code>. The <code>cache()</code> method is a shorthand for using the default storage level,
+which is <code>StorageLevel.MEMORY_ONLY</code> (store deserialized objects in memory). The full set of storage levels is:</p>
+<table>
+<thead>
+<tr>
+<th align="left">Storage Level</th>
+<th align="left">Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">MEMORY_ONLY</td>
+<td align="left">Store RDD as deserialized Java objects in the JVM. If the RDD does not fit in memory, some partitions will not be cached and will be recomputed on the fly each time they're needed. This is the default level.</td>
+</tr>
+<tr>
+<td align="left">MEMORY_AND_DISK</td>
+<td align="left">Store RDD as deserialized Java objects in the JVM. If the RDD does not fit in memory, store the partitions that don't fit on disk, and read them from there when they're needed.</td>
+</tr>
+<tr>
+<td align="left">MEMORY_ONLY_SER (Java and Scala)</td>
+<td align="left">Store RDD as <em>serialized</em> Java objects (one byte array per partition). This is generally more space-efficient than deserialized objects, especially when using a fast serializer, but more CPU-intensive to read.</td>
+</tr>
+<tr>
+<td align="left">MEMORY_AND_DISK_SER (Java and Scala)</td>
+<td align="left">Similar to MEMORY_ONLY_SER, but spill partitions that don't fit in memory to disk instead of recomputing them on the fly each time they're needed.</td>
+</tr>
+<tr>
+<td align="left">DISK_ONLY</td>
+<td align="left">Store the RDD partitions only on disk.</td>
+</tr>
+<tr>
+<td align="left">MEMORY_ONLY_2, MEMORY_AND_DISK_2, etc.</td>
+<td align="left">Same as the levels above, but replicate each partition on two cluster nodes.</td>
+</tr>
+<tr>
+<td align="left">OFF_HEAP (experimental)</td>
+<td align="left">Similar to MEMORY_ONLY_SER, but store the data in off-heap memory. This requires off-heap memory to be enabled.</td>
+</tr>
+<tr>
+<td align="left">PMEM_ONLY</td>
+<td align="left">Similar to MEMORY_ONLY_SER, but spill partitions that don't fit in memory to <em>Intel Optane PMem</em> instead of recomputing them on the fly each time they're needed.</td>
+</tr>
+<tr>
+<td align="left">PMEM_AND_DISK</td>
+<td align="left">Similar to MEMORY_AND_DISK_SER, but spill partitions that don't fit in memory to <em>Intel Optane PMem</em> and disk instead of recomputing them on the fly each time they're needed.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="which-storage-level-to-choose">Which Storage Level to Choose?</h3>
+<p>Spark's storage levels are meant to provide different trade-offs between memory usage and CPU efficiency. </p>
+<p>PMem storage level is added to support a new tier for storage level besides memory and disk.
+Using PMem library to access Optane PMem can help to avoid the overhead from disk.
+Large capacity and high I/O performance of PMem shows better performance than tied DRAM and disk solution under the same cost.</p>
 <h2 id="user-guide">User Guide</h2>
 <h3 id="installation">Installation</h3>
 <p>We have provided a Conda package which will automatically install dependencies needed by OAP, you can refer to <a href="../OAP-Installation-Guide/">OAP-Installation-Guide</a> for more information. If you have finished <a href="../OAP-Installation-Guide/">OAP-Installation-Guide</a>, you needn't compile and install Memkind, and you can find compiled OAP jars in <code>$HOME/miniconda2/envs/oapenv/oap_jars</code>.</p>
@@ -166,7 +226,7 @@ mount -o dax /dev/pmem1 /mnt/pmem1
 
 <p>In this case file systems are generated for 2 numa nodes, which can be checked by "numactl --hardware". For a different number of numa nodes, a corresponding number of namespaces should be created to assure correct file system paths mapping to numa nodes.</p>
 <ul>
-<li>Make sure <a href="https://github.com/memkind/memkind/tree/v1.10.1-rc2">Memkind</a> library installed on every cluster worker node. Compile Memkind based on your system or directly place our pre-built binary of <a href="https://github.com/Intel-bigdata/OAP/releases/download/v1.0.0-spark-3.0.0/libmemkind.so.0">libmemkind.so.0</a> for x86 64bit CentOS Linux in the <code>/lib64/</code>directory of each worker node in cluster.
+<li>Make sure <a href="https://github.com/memkind/memkind/tree/v1.10.1">Memkind</a> library installed on every cluster worker node.<br />
    The Memkind library depends on <code>libnuma</code> at the runtime, so it must already exist in the worker node system.
    Build the latest memkind lib from source:</li>
 </ul>
@@ -191,6 +251,12 @@ daxctl reconfigure-device daxX.Y --mode=system-ram
 
 <p>Refer <a href="https://github.com/memkind/memkind#kernel">Memkind KMem</a> for details.</p>
 <h3 id="compiling">Compiling</h3>
+<p>Before building PMem Spill, install PMem-Common locally:</p>
+<pre><code>git clone -b &lt;tag-version&gt; https://github.com/oap-project/pmem-common.git
+cd pmem-common
+mvn clean install -DskipTests
+</code></pre>
+
 <p>To build pmem spill, you can run below commands:</p>
 <pre><code>cd ${PMEM-SPILL}
 mvn clean package -DskipTests
@@ -207,9 +273,9 @@ spark.yarn.numa.enabled true
 spark.yarn.numa.num [Your numa node number]
 spark.memory.pmem.mode [AppDirect | KMemDax]
 
-spark.files                       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-spill-&lt;version&gt;-with-spark-&lt;version&gt;.jar,file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
-spark.executor.extraClassPath     ./pmem-spill-&lt;version&gt;-with-spark-&lt;version&gt;.jar:./pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
-spark.driver.extraClassPath       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-spill-&lt;version&gt;-with-spark-&lt;version&gt;.jar:file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
+spark.files                       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-rdd-cache-&lt;version&gt;-with-spark-&lt;version&gt;.jar,file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
+spark.executor.extraClassPath     ./pmem-rdd-cache-&lt;version&gt;-with-spark-&lt;version&gt;.jar:./pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
+spark.driver.extraClassPath       file://${PATH_TO_PMEM_SPILL_JAR}/pmem-rdd-cache-&lt;version&gt;-with-spark-&lt;version&gt;.jar:file://${PATH_TO_PMEM_COMMON_JAR}/pmem-common-&lt;version&gt;-with-spark-&lt;version&gt;.jar
 </code></pre>
 
 <h3 id="use-optane-pmem-to-cache-data">Use Optane PMem to cache data</h3>
