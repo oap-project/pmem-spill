@@ -9,7 +9,7 @@
   
   
   <link rel="shortcut icon" href="../img/favicon.ico">
-  <title>OAP Developer Guide - PMem Spill - master</title>
+  <title>OAP Developer Guide - PMem Spill - 1.1.1</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
 
   <link rel="stylesheet" href="../css/theme.css" />
@@ -38,7 +38,7 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
     <div class="wy-side-scroll">
       <div class="wy-side-nav-search">
-        <a href=".." class="icon icon-home"> PMem Spill - master</a>
+        <a href=".." class="icon icon-home"> PMem Spill - 1.1.1</a>
         <div role="search">
   <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
@@ -66,6 +66,12 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#enabling-numa-binding-for-pmem-in-spark">Enabling NUMA binding for PMem in Spark</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#rebuilding-spark-packages-with-numa-binding-patch">Rebuilding Spark packages with NUMA binding patch</a>
+    </li>
+        </ul>
+    </li>
     </ul>
                     </li>
                 </ul>
@@ -82,7 +88,7 @@
       
       <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
         <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-        <a href="..">PMem Spill - master</a>
+        <a href="..">PMem Spill - 1.1.1</a>
       </nav>
 
       
@@ -109,13 +115,13 @@
 <p>This document contains the instructions &amp; scripts on installing necessary dependencies and building OAP modules. 
 You can get more detailed information from OAP each module below.</p>
 <ul>
-<li><a href="https://github.com/oap-project/sql-ds-cache/blob/v1.1.0-spark-3.0.0/docs/Developer-Guide.md">SQL Index and Data Source Cache</a></li>
-<li><a href="https://github.com/oap-project/pmem-common/tree/v1.1.0-spark-3.0.0">PMem Common</a></li>
-<li><a href="https://github.com/oap-project/pmem-spill/tree/v1.1.0-spark-3.0.0">PMem Spill</a></li>
-<li><a href="https://github.com/oap-project/pmem-shuffle/tree/v1.1.0-spark-3.0.0#5-install-dependencies-for-pmem-shuffle">PMem Shuffle</a></li>
-<li><a href="https://github.com/oap-project/remote-shuffle/tree/v1.1.0-spark-3.0.0">Remote Shuffle</a></li>
-<li><a href="https://github.com/oap-project/oap-mllib/tree/v1.1.0-spark-3.0.0">OAP MLlib</a></li>
-<li><a href="https://github.com/oap-project/native-sql-engine/tree/v1.1.0-spark-3.0.0">Native SQL Engine</a></li>
+<li><a href="https://github.com/oap-project/sql-ds-cache/blob/v1.1.1-spark-3.1.1/docs/Developer-Guide.md">SQL Index and Data Source Cache</a></li>
+<li><a href="https://github.com/oap-project/pmem-common/tree/v1.1.1-spark-3.1.1">PMem Common</a></li>
+<li><a href="https://github.com/oap-project/pmem-spill/tree/v1.1.1-spark-3.1.1">PMem Spill</a></li>
+<li><a href="https://github.com/oap-project/pmem-shuffle/tree/v1.1.1-spark-3.1.1#5-install-dependencies-for-pmem-shuffle">PMem Shuffle</a></li>
+<li><a href="https://github.com/oap-project/remote-shuffle/tree/v1.1.1-spark-3.1.1">Remote Shuffle</a></li>
+<li><a href="https://github.com/oap-project/oap-mllib/tree/v1.1.1-spark-3.1.1">OAP MLlib</a></li>
+<li><a href="https://github.com/oap-project/native-sql-engine/tree/v1.1.1-spark-3.1.1">Native SQL Engine</a></li>
 </ul>
 <h2 id="building-oap">Building OAP</h2>
 <h3 id="prerequisites">Prerequisites</h3>
@@ -125,17 +131,17 @@ You can get more detailed information from OAP each module below.</p>
 # sh dev/install-compile-time-dependencies.sh
 </code></pre>
 
-<p><em>Note</em>: oap-tools tag version <code>v1.1.0-spark-3.0.0</code> corresponds to  all OAP modules' tag version <code>v1.1.0-spark-3.0.0</code>.</p>
+<p><em>Note</em>: oap-tools tag version <code>v1.1.1-spark-3.1.1</code> corresponds to  all OAP modules' tag version <code>v1.1.1-spark-3.1.1</code>.</p>
 <p>Then the dependencies below will be installed:</p>
 <ul>
-<li><a href="https://help.directadmin.com/item.php?id=494">Cmake</a></li>
+<li><a href="https://cmake.org/install/">Cmake</a></li>
 <li><a href="https://gcc.gnu.org/wiki/InstallingGCC">GCC &gt; 7</a></li>
 <li><a href="https://github.com/memkind/memkind/tree/v1.10.1">Memkind</a></li>
 <li><a href="https://github.com/pmem/vmemcache">Vmemcache</a></li>
 <li><a href="https://github.com/Intel-bigdata/HPNL">HPNL</a></li>
 <li><a href="https://github.com/pmem/pmdk">PMDK</a>  </li>
 <li><a href="https://software.intel.com/content/www/us/en/develop/tools/oneapi.html">OneAPI</a></li>
-<li><a href="https://github.com/oap-project/arrow/tree/arrow-3.0.0-oap-1.1">Arrow</a></li>
+<li><a href="https://github.com/oap-project/arrow/tree/arrow-4.0.0-oap-1.1.1">Arrow</a></li>
 <li><a href="https://llvm.org/">LLVM</a> </li>
 </ul>
 <p>Run the following command to learn more.</p>
@@ -158,6 +164,26 @@ If enable Shuffle Remote PMem extension with RDMA, you can refer to <a href="htt
 
 <p>Building specified OAP Module, such as <code>sql-ds-cache</code>, run:</p>
 <pre><code>$ sh $OAP_TOOLS_HOME/dev/compile-oap.sh --sql-ds-cache
+</code></pre>
+
+<h2 id="enabling-numa-binding-for-pmem-in-spark">Enabling NUMA binding for PMem in Spark</h2>
+<h3 id="rebuilding-spark-packages-with-numa-binding-patch">Rebuilding Spark packages with NUMA binding patch</h3>
+<p>When using PMem as a cache medium apply the <a href="https://www.kernel.org/doc/html/v4.18/vm/numa.html">NUMA</a> binding patch <a href="../numa-binding-spark-3.1.1.patch">numa-binding-spark-3.1.1.patch</a> to Spark source code for best performance.</p>
+<ol>
+<li>
+<p>Download src for <a href="https://archive.apache.org/dist/spark/spark-3.1.1/spark-3.1.1.tgz">Spark-3.1.1</a> and clone the src from github.</p>
+</li>
+<li>
+<p>Apply this patch and <a href="https://spark.apache.org/docs/latest/building-spark.html">rebuild</a> the Spark package.</p>
+</li>
+</ol>
+<pre><code>git apply numa-binding-spark-3.1.1.patch
+</code></pre>
+
+<ol>
+<li>Add these configuration items to the Spark configuration file $SPARK_HOME/conf/spark-defaults.conf to enable NUMA binding.</li>
+</ol>
+<pre><code>spark.yarn.numa.enabled true 
 </code></pre>
               
             </div>
