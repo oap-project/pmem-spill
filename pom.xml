@@ -17,7 +17,7 @@
 
   <groupId>com.intel.oap</groupId>
   <artifactId>pmem-spill-parent</artifactId>
-  <version>1.2.0-snapshot</version>
+  <version>1.2.0</version>
   <name>OAP Project PMem Spill</name>
   <packaging>pom</packaging>
 
